@@ -15,18 +15,17 @@ html, body {
   align-items: center;
   overflow: hidden;
   font-size: 16px;
-  transition: background-color 0.3s ease;
   width: 100vw;
   height: 100vh;
+  transition: background-color 0.3s ease;
 }
 
 /* Canvas */
 canvas {
   display: block;
-  background-color: #fff;
+  background-color: var(--canvas-bg);
   border-radius: 12px;
   box-shadow: 0 4px 20px rgba(0, 0, 0, 0.15);
-  border: none;
   width: 100%;
   height: 100%;
   touch-action: none;
@@ -36,69 +35,58 @@ canvas {
 /* Toolbar */
 #toolbar {
   position: fixed;
-  top: 20px;
+  top: 10px;
   left: 50%;
   transform: translateX(-50%);
   display: flex;
-  gap: 12px;
-  padding: 12px 16px;
-  border-radius: 50px;
-  background: rgba(255, 255, 255, 0.85);
+  flex-wrap: wrap;
+  justify-content: center;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 16px;
+  border-radius: 16px;
+  background: var(--toolbar-bg);
   backdrop-filter: blur(10px);
   box-shadow: 0 10px 15px rgba(0, 0, 0, 0.1);
   z-index: 10;
-  flex-wrap: wrap;
-  justify-content: center;
-  max-width: 95%;
+  width: 95%;
+  max-width: 1000px;
 }
 
 #toolbar button {
-  background-color: #4CAF50;
-  color: white;
-  border: none;
-  padding: 10px 20px;
-  border-radius: 8px;
+  flex: 1 1 120px;
+  max-width: 150px;
+  padding: 10px 16px;
   font-size: 14px;
+  border: none;
+  border-radius: 8px;
+  background-color: var(--btn-bg);
+  color: white;
   cursor: pointer;
   transition: background 0.3s ease, transform 0.2s ease;
-  width: auto;
-  margin: 4px;
 }
 
 #toolbar button:hover {
-  background-color: #45a049;
+  background-color: var(--btn-hover);
   transform: scale(1.05);
 }
 
 #toolbar button:active {
-  background-color: #388e3c;
+  background-color: var(--btn-active);
   transform: scale(1);
 }
 
-/* Theme Toggle */
-#themeToggle {
-  position: fixed;
-  bottom: 20px;
-  right: 20px;
-  background-color: #333;
-  color: #fff;
-  border: none;
-  padding: 12px;
-  border-radius: 50%;
-  font-size: 20px;
-  cursor: pointer;
-  box-shadow: 0 6px 15px rgba(0, 0, 0, 0.2);
-  transition: background-color 0.3s ease, transform 0.2s ease;
+/* Eraser special style */
+#eraserButton {
+  background-color: #f0ad4e;
 }
 
-#themeToggle:hover {
-  background-color: #444;
-  transform: scale(1.1);
+#eraserButton:hover {
+  background-color: #ec971f;
 }
 
-#themeToggle:active {
-  background-color: #555;
-  transform: scale(1);
+#eraserButton:active {
+  background-color: #e67e22;
 }
 
 /* Page Indicator */
@@ -133,7 +121,33 @@ canvas {
   box-shadow: 0 0 10px rgba(0, 0, 255, 0.3);
 }
 
-/* Dark Mode Styles */
+/* Theme Toggle Button */
+#themeToggle {
+  position: fixed;
+  bottom: 20px;
+  right: 20px;
+  background-color: #333;
+  color: #fff;
+  border: none;
+  padding: 12px;
+  border-radius: 50%;
+  font-size: 20px;
+  cursor: pointer;
+  box-shadow: 0 6px 15px rgba(0, 0, 0, 0.2);
+  transition: background-color 0.3s ease, transform 0.2s ease;
+}
+
+#themeToggle:hover {
+  background-color: #444;
+  transform: scale(1.1);
+}
+
+#themeToggle:active {
+  background-color: #555;
+  transform: scale(1);
+}
+
+/* Dark Mode Variables */
 :root {
   --bg: #f9f7f7;
   --canvas-bg: #ffffff;
@@ -154,54 +168,33 @@ canvas {
   --text: #fff;
 }
 
-/* Mobile Adjustments */
+/* Responsive Layout: Mobile */
 @media (max-width: 600px) {
   #toolbar {
-    flex-direction: column;
-    gap: 8px;
-    padding: 16px;
-    max-width: 80%;
+    top: 0;
+    left: 0;
+    right: 0;
+    transform: none;
+    flex-wrap: nowrap;
+    overflow-x: auto;
+    justify-content: flex-start;
+    padding: 10px;
+    border-radius: 0;
+    background: var(--toolbar-bg);
   }
 
   #toolbar button {
+    flex: 0 0 auto;
+    font-size: 13px;
     padding: 8px 12px;
-    font-size: 12px;
-    width: auto;
-    margin: 6px 0;
-  }
-
-  canvas {
-    width: 100%;
-    height: 100%;
+    margin-right: 6px;
   }
 
   #pageIndicator {
+    font-size: 14px;
+    padding: 8px 14px;
     bottom: 16px;
-    font-size: 14px;
   }
-
-  #eraserButton {
-    background-color: #f0ad4e;
-    color: white;
-    border: none;
-    padding: 10px 20px;
-    border-radius: 8px;
-    font-size: 14px;
-    cursor: pointer;
-    transition: background 0.3s ease, transform 0.2s ease;
-    margin-left: 12px;
-  }
-  
-  #eraserButton:hover {
-    background-color: #ec971f;
-    transform: scale(1.05);
-  }
-  
-  #eraserButton:active {
-    background-color: #e67e22;
-    transform: scale(1);
-  }
-  
 
   #themeToggle {
     bottom: 16px;
