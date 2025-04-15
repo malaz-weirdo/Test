@@ -1,190 +1,168 @@
 const canvas = document.getElementById('canvas');
 const ctx = canvas.getContext('2d');
-canvas.width = window.innerWidth;
-canvas.height = window.innerHeight;
+const penColorPicker = document.getElementById('penColorPicker');
+const saveButton = document.getElementById('saveButton');
+const loadButton = document.getElementById('loadButton');
+const textInput = document.getElementById('textInput');
+const themeToggleButton = document.getElementById('themeToggle');
+const pageNextButton = document.getElementById('nextPage');
+const pagePrevButton = document.getElementById('prevPage');
+const pageIndicator = document.getElementById('pageIndicator');
+const penColorButton = document.getElementById('penColorButton');
+const eraserButton = document.getElementById('eraserButton');
 
 let drawing = false;
-let penColor = document.getElementById('colorPicker').value;
-let mode = 'pen';
-let undoStack = [];
-let redoStack = [];
-let pages = [];
-let currentPage = 0;
+let currentPage = 1;
+let penColor = '#000000'; // Default pen color
+let eraserMode = false; // Eraser mode flag
+let savedNotes = [];
 
-const textInput = document.getElementById('textInput');
-const pageIndicator = document.getElementById('pageIndicator');
-const currentPageNumber = document.getElementById('currentPageNumber');
-const totalPages = document.getElementById('totalPages');
+// Resize canvas to fit the screen
+function resizeCanvas() {
+  canvas.width = window.innerWidth;
+  canvas.height = window.innerHeight - 60; // Toolbar height offset
+}
+resizeCanvas();
+window.addEventListener('resize', resizeCanvas);
 
-// Touch gesture vars
-let touchStartX = 0;
-let touchEndX = 0;
+// Eraser Button Event Listener
+eraserButton.addEventListener('click', () => {
+  eraserMode = !eraserMode;
+  if (eraserMode) {
+    eraserButton.style.backgroundColor = '#f44336'; // Change button color when eraser is active
+    eraserButton.textContent = 'Pen'; // Change text to 'Pen' to toggle back
+  } else {
+    eraserButton.style.backgroundColor = ''; // Reset color when pen is active
+    eraserButton.textContent = 'Eraser'; // Change text to 'Eraser' to toggle to eraser
+  }
+});
 
-// Theme toggle
-const themeBtn = document.getElementById('themeToggle');
-themeBtn.onclick = () => {
-  const isDark = document.documentElement.getAttribute('data-theme') === 'dark';
-  document.documentElement.setAttribute('data-theme', isDark ? 'light' : 'dark');
-  localStorage.setItem('note-theme', isDark ? 'light' : 'dark');
+// Pen Color Picker
+penColorButton.addEventListener('click', () => {
+  penColorPicker.click();
+});
+
+penColorPicker.addEventListener('input', (e) => {
+  penColor = e.target.value;
+});
+
+// Drawing and Eraser Logic
+let startX, startY;
+
+// Combine drawing/eraser logic for both mouse and touch events
+const drawOrErase = (x, y) => {
+  if (eraserMode) {
+    ctx.clearRect(x - 10, y - 10, 20, 20); // Erase a 20x20 area
+  } else {
+    ctx.lineTo(x, y);
+    ctx.strokeStyle = penColor;
+    ctx.lineWidth = 5;
+    ctx.lineJoin = 'round';
+    ctx.stroke();
+  }
 };
-const savedTheme = localStorage.getItem('note-theme');
-if (savedTheme) {
-  document.documentElement.setAttribute('data-theme', savedTheme);
-}
 
-// Initialize first page
-pages.push(createEmptyPage());
-loadPage(currentPage);
+// Function to get canvas offset correctly (for both mouse and touch events)
+const getCanvasOffset = (e) => {
+  const rect = canvas.getBoundingClientRect();
+  return {
+    x: e.clientX - rect.left,
+    y: e.clientY - rect.top
+  };
+};
 
-// Drawing logic
-canvas.addEventListener('pointerdown', (e) => {
-  if (e.pointerType !== 'pen') return;
+// Drawing on canvas (mouse and touch events)
+canvas.addEventListener('mousedown', (e) => {
   drawing = true;
-  saveState();
+  const { x, y } = getCanvasOffset(e);
+  startX = x;
+  startY = y;
   ctx.beginPath();
-  ctx.moveTo(e.offsetX, e.offsetY);
+  ctx.moveTo(startX, startY);
 });
-canvas.addEventListener('pointermove', (e) => {
-  if (!drawing || e.pointerType !== 'pen') return;
-  ctx.lineTo(e.offsetX, e.offsetY);
-  ctx.strokeStyle = mode === 'pen' ? penColor : '#fffbe6';
-  ctx.lineWidth = 2;
-  ctx.lineCap = 'round';
-  ctx.stroke();
+
+canvas.addEventListener('mousemove', (e) => {
+  if (drawing) {
+    const { x, y } = getCanvasOffset(e);
+    drawOrErase(x, y);
+  }
 });
-canvas.addEventListener('pointerup', () => drawing = false);
-canvas.addEventListener('pointercancel', () => drawing = false);
 
-// Prevent scrolling
-canvas.addEventListener('touchmove', e => e.preventDefault(), { passive: false });
+canvas.addEventListener('mouseup', () => {
+  drawing = false;
+  ctx.closePath();
+});
 
-// Toolbar actions
-document.getElementById('colorPicker').addEventListener('input', e => penColor = e.target.value);
-document.getElementById('penBtn').onclick = () => mode = 'pen';
-document.getElementById('eraserBtn').onclick = () => mode = 'eraser';
-document.getElementById('undoBtn').onclick = undo;
-document.getElementById('redoBtn').onclick = redo;
-document.getElementById('addPageBtn').onclick = addPage;
-document.getElementById('prevPageBtn').onclick = prevPage;
-document.getElementById('nextPageBtn').onclick = nextPage;
-document.getElementById('saveBtn').onclick = saveNote;
-document.getElementById('loadBtn').onclick = loadNote;
-document.getElementById('textBtn').onclick = startTextInput;
+canvas.addEventListener('touchstart', (e) => {
+  e.preventDefault();
+  drawing = true;
+  const { x, y } = getCanvasOffset(e.touches[0]);
+  startX = x;
+  startY = y;
+  ctx.beginPath();
+  ctx.moveTo(startX, startY);
+});
 
-// Touch swipe gestures
-canvas.addEventListener('touchstart', (e) => touchStartX = e.changedTouches[0].screenX, { passive: true });
-canvas.addEventListener('touchend', (e) => {
-  touchEndX = e.changedTouches[0].screenX;
-  handleSwipeGesture();
-}, { passive: true });
-
-function handleSwipeGesture() {
-  const swipeDistance = touchEndX - touchStartX;
-  const threshold = 80;
-
-  if (Math.abs(swipeDistance) > threshold) {
-    saveCurrentPage();
-    if (swipeDistance < 0 && currentPage < pages.length - 1) {
-      nextPage();
-    } else if (swipeDistance > 0 && currentPage > 0) {
-      prevPage();
-    }
+canvas.addEventListener('touchmove', (e) => {
+  e.preventDefault();
+  if (drawing) {
+    const { x, y } = getCanvasOffset(e.touches[0]);
+    drawOrErase(x, y);
   }
-}
+});
 
-function undo() {
-  if (undoStack.length > 0) {
-    redoStack.push(canvas.toDataURL());
-    let img = new Image();
-    img.onload = () => ctx.drawImage(img, 0, 0);
-    img.src = undoStack.pop();
-  }
-}
+canvas.addEventListener('touchend', () => {
+  drawing = false;
+  ctx.closePath();
+});
 
-function redo() {
-  if (redoStack.length > 0) {
-    undoStack.push(canvas.toDataURL());
-    let img = new Image();
-    img.onload = () => ctx.drawImage(img, 0, 0);
-    img.src = redoStack.pop();
-  }
-}
-
-function addPage() {
-  pages.push(createEmptyPage());
-  currentPage = pages.length - 1;
-  loadPage(currentPage);
-}
-
-function prevPage() {
-  if (currentPage > 0) {
-    saveCurrentPage();
-    currentPage--;
-    loadPage(currentPage);
-  }
-}
-
-function nextPage() {
-  if (currentPage < pages.length - 1) {
-    saveCurrentPage();
-    currentPage++;
-    loadPage(currentPage);
-  }
-}
-
-function saveNote() {
+// Save Canvas as Image
+saveButton.addEventListener('click', () => {
+  const dataUrl = canvas.toDataURL(); // Convert canvas to image
   const link = document.createElement('a');
-  link.download = `page-${currentPage + 1}.png`;
-  link.href = canvas.toDataURL();
+  link.href = dataUrl;
+  link.download = `note_page_${currentPage}.png`;
   link.click();
-}
-
-function loadNote() {
-  document.getElementById('loadInput').click();
-}
-
-document.getElementById('loadInput').addEventListener('change', (e) => {
-  const file = e.target.files[0];
-  if (!file) return;
-  const img = new Image();
-  const reader = new FileReader();
-  reader.onload = () => {
-    img.onload = () => {
-      ctx.clearRect(0, 0, canvas.width, canvas.height);
-      ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
-    };
-    img.src = reader.result;
-  };
-  reader.readAsDataURL(file);
 });
 
-function startTextInput() {
-  canvas.style.pointerEvents = 'none';
-  textInput.style.display = 'block';
-  textInput.value = '';
-  canvas.addEventListener('click', placeTextOnce);
-}
+// Load Canvas from Image
+loadButton.addEventListener('change', () => {
+  const file = loadButton.files[0];
+  if (file) {
+    const reader = new FileReader();
+    reader.onload = function(event) {
+      const img = new Image();
+      img.src = event.target.result;
+      img.onload = function() {
+        ctx.clearRect(0, 0, canvas.width, canvas.height); // Clear current canvas
+        ctx.drawImage(img, 0, 0, canvas.width, canvas.height); // Draw loaded image
+      };
+    };
+    reader.readAsDataURL(file); // Convert the file to a data URL
+  }
+});
 
-function placeTextOnce(e) {
-  textInput.style.left = `${e.clientX}px`;
-  textInput.style.top = `${e.clientY}px`;
-  textInput.focus();
+// Page Navigation
+pageNextButton.addEventListener('click', () => {
+  currentPage++;
+  pageIndicator.textContent = `Page ${currentPage}`;
+  ctx.clearRect(0, 0, canvas.width, canvas.height); // Clear canvas on page change
+});
 
-  textInput.onblur = () => {
-    ctx.fillStyle = penColor;
-    ctx.font = '16px sans-serif';
-    ctx.fillText(textInput.value, e.offsetX, e.offsetY + 16);
-    textInput.style.display = 'none';
-    canvas.style.pointerEvents = 'auto';
-    canvas.removeEventListener('click', placeTextOnce);
-  };
-}
+pagePrevButton.addEventListener('click', () => {
+  if (currentPage > 1) {
+    currentPage--;
+    pageIndicator.textContent = `Page ${currentPage}`;
+    ctx.clearRect(0, 0, canvas.width, canvas.height); // Clear canvas on page change
+  }
+});
 
-function saveState() {
-  undoStack.push(canvas.toDataURL());
-  redoStack.length = 0;
-}
-
-function createEmptyPage() {
-  const offscreen = document.createElement('canvas');
-}
+// Toggle Theme
+themeToggleButton.addEventListener('click', () => {
+  const currentTheme = document.documentElement.getAttribute('data-theme');
+  if (currentTheme === 'dark') {
+    document.documentElement.removeAttribute('data-theme');
+  } else {
+    document.documentElement.setAttribute('data-theme', 'dark');
+  }
+});
